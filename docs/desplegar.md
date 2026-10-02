@@ -106,7 +106,13 @@ en producción.
 | `NODE_ENV` | `production` |
 
 El navegador **nunca** llama a la API directamente: va por el propio servidor de
-Next. Por eso la API no necesita estar expuesta ni abrir CORS a nadie.
+Next (`/api/upstream/...`). Por eso la API no necesita estar expuesta ni abrir
+CORS a nadie.
+
+> `API_ORIGIN` se lee **en cada peticion**, no al construir. Es deliberado: la
+> misma imagen sirve para varios entornos. No use `NEXT_PUBLIC_API_URL` —ese
+> prefijo incrusta el valor en el paquete del navegador y lo congela durante el
+> build.
 
 ### 6. El dominio
 

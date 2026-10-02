@@ -11,7 +11,15 @@ import type { TrustLevel } from '@mev/domain/browser';
  *    campos que la API ya filtro.
  */
 
-export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+/**
+ * Direccion interna de la API. Solo la usa el servidor de Next.
+ *
+ * NO lleva el prefijo `NEXT_PUBLIC_`: ese prefijo incrusta el valor en el
+ * paquete que descarga el navegador —filtrando la direccion interna— y ademas
+ * lo fija AL CONSTRUIR, de modo que la variable del alojamiento no tendria
+ * efecto. Leida asi, se resuelve en cada arranque.
+ */
+export const API_URL = process.env.API_ORIGIN ?? 'http://localhost:4000';
 
 export interface UnidadPublica {
   club: string;

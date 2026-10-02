@@ -1,13 +1,15 @@
 /**
- * URL interna de la API. Solo la usa el servidor de Next.
+ * El navegador NUNCA llama a la API directamente: lo hace a traves de
+ * `src/app/api/upstream/[...ruta]/route.ts`, que reenvia a `API_ORIGIN`. Asi la
+ * web funciona desde cualquier dispositivo que alcance a este servidor sin que
+ * la API tenga que estar expuesta ni que su origen entre en la lista blanca de
+ * CORS.
  *
- * El navegador NUNCA llama a la API directamente: lo hace a traves de la
- * reescritura de abajo. Asi la web funciona desde cualquier dispositivo que
- * alcance a este servidor (por ejemplo el telefono de un aficionado en la misma
- * red), sin que la API tenga que estar expuesta ni que su origen entre en la
- * lista blanca de CORS.
+ * Ese puente era antes un `rewrite` declarado aqui. No servia: Next resuelve
+ * los rewrites AL CONSTRUIR y los graba en el manifiesto, asi que la direccion
+ * de la API quedaba congelada con el valor del build y la variable del
+ * alojamiento se ignoraba.
  */
-const apiOrigin = process.env.API_ORIGIN ?? 'http://localhost:4000';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -32,10 +34,6 @@ const nextConfig = {
     // Toda la red local 192.168.x.x, para las pruebas por WiFi.
     '192.168.0.0/16',
   ],
-
-  async rewrites() {
-    return [{ source: '/api/upstream/:path*', destination: `${apiOrigin}/api/v1/:path*` }];
-  },
 
   // @mev/ui y @mev/domain se publican como fuente TypeScript dentro del
   // monorepo; Next los transpila en lugar de consumir un `dist` precompilado.
