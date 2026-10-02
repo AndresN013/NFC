@@ -62,7 +62,13 @@ export type AppConfig = z.infer<typeof schema> & {
 };
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
-  const parsed = schema.safeParse(env);
+  // Los alojamientos en la nube (Railway, Render, Fly) asignan el puerto en
+  // caliente y lo comunican por `PORT`. Un proceso que ignore esa variable
+  // escucha donde nadie le habla y el proveedor lo da por caido.
+  const parsed = schema.safeParse({
+    ...env,
+    API_PORT: env.API_PORT ?? env.PORT,
+  });
 
   if (!parsed.success) {
     const issues = parsed.error.issues

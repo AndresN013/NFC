@@ -6,9 +6,10 @@
     "//dev": "-H 0.0.0.0 para que un telefono de la misma red pueda abrirlo: un chip grabado con localhost no abre nada.",
     "dev": "next dev -H 0.0.0.0 -p 3000",
     "build": "next build",
-    "start": "next start -H 0.0.0.0 -p 3000",
+    "start": "next start -H 0.0.0.0 -p ${PORT:-3000}",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "//start": "${PORT:-3000} porque los alojamientos en la nube asignan el puerto al arrancar; fijarlo a mano deja el servicio inalcanzable."
   },
   "dependencies": {
     "@mev/domain": "*",
