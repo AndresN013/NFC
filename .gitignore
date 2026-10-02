@@ -1,0 +1,33 @@
+node_modules/
+dist/
+build/
+.next/
+out/
+coverage/
+*.tsbuildinfo
+
+# Entorno: NUNCA versionar secretos reales
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Prisma
+apps/api/prisma/*.db
+apps/api/prisma/*.db-journal
+
+# Android
+apps/nfc-android/.gradle/
+apps/nfc-android/local.properties
+apps/nfc-android/**/build/
+*.keystore
+*.jks
+
+# OS / editores
+.DS_Store
+.idea/
+.vscode/
+*.log
+
+# Binarios de herramientas descargados localmente (cloudflared, etc.)
+tools/

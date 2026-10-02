@@ -1,0 +1,124 @@
+/**
+ * Tokens de diseno de Marathon Escudo Vivo.
+ *
+ * Los contrastes de texto sobre fondo cumplen WCAG 2.1 AA (>= 4.5:1).
+ * Los colores de estado NUNCA son el unico portador de significado: cada
+ * componente de estado emite ademas un icono y un texto. Ver NivelDeConfianza.
+ */
+:root {
+  /* Marca generica. No se usa ninguna identidad visual protegida. */
+  --mev-verde-900: #06251b;
+  --mev-verde-700: #0b3d2e;
+  --mev-verde-500: #15795c;
+  --mev-verde-100: #e3f3ed;
+
+  --mev-tinta: #10151a;
+  --mev-tinta-suave: #47535e;
+  --mev-linea: #d6dde3;
+  --mev-fondo: #ffffff;
+  --mev-fondo-suave: #f5f8fa;
+
+  /* Estados de confianza. Contraste comprobado sobre --mev-fondo. */
+  --mev-exito: #0f6b3f;
+  --mev-exito-fondo: #e6f4ec;
+  --mev-neutro: #35506b;
+  --mev-neutro-fondo: #eaf0f6;
+  --mev-alerta: #8a4b00;
+  --mev-alerta-fondo: #fdf0e0;
+  --mev-error: #97231f;
+  --mev-error-fondo: #fdeceb;
+
+  --mev-esp-1: 0.25rem;
+  --mev-esp-2: 0.5rem;
+  --mev-esp-3: 0.75rem;
+  --mev-esp-4: 1rem;
+  --mev-esp-5: 1.5rem;
+  --mev-esp-6: 2rem;
+  --mev-esp-7: 3rem;
+
+  --mev-radio: 0.75rem;
+  --mev-radio-sm: 0.375rem;
+
+  --mev-fuente:
+    system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+  --mev-texto-xs: 0.75rem;
+  --mev-texto-sm: 0.875rem;
+  --mev-texto-md: 1rem;
+  --mev-texto-lg: 1.25rem;
+  --mev-texto-xl: 1.625rem;
+  --mev-texto-2xl: 2rem;
+
+  --mev-sombra: 0 1px 2px rgb(16 21 26 / 8%), 0 4px 12px rgb(16 21 26 / 6%);
+
+  /* Grosor del anillo de foco. Visible sobre cualquier fondo. */
+  --mev-foco: 3px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --mev-tinta: #f2f6f8;
+    --mev-tinta-suave: #b3c0cb;
+    --mev-linea: #2b3945;
+    --mev-fondo: #0d1418;
+    --mev-fondo-suave: #151f26;
+    --mev-verde-100: #0f3327;
+
+    --mev-exito: #6ddba0;
+    --mev-exito-fondo: #0c2d1e;
+    --mev-neutro: #a9c6e4;
+    --mev-neutro-fondo: #14232f;
+    --mev-alerta: #f2b872;
+    --mev-alerta-fondo: #34220a;
+    --mev-error: #f49b96;
+    --mev-error-fondo: #331311;
+  }
+}
+
+/* Respeta la preferencia del sistema de reducir movimiento. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.mev-foco-visible:focus-visible,
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: var(--mev-foco) solid var(--mev-verde-500);
+  outline-offset: 2px;
+}
+
+/* Enlace de salto: invisible hasta recibir foco por teclado. */
+.mev-salto-contenido {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  background: var(--mev-fondo);
+  color: var(--mev-tinta);
+  padding: var(--mev-esp-3);
+  z-index: 100;
+}
+.mev-salto-contenido:focus {
+  left: var(--mev-esp-3);
+  top: var(--mev-esp-3);
+}
+
+.mev-solo-lectores {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

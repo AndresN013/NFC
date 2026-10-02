@@ -1,0 +1,39 @@
+{
+  "name": "marathon-escudo-vivo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MVP de autenticacion NFC para jerseys Marathon - monorepo",
+  "license": "UNLICENSED",
+  "workspaces": [
+    "packages/*",
+    "apps/api",
+    "apps/fan-web",
+    "apps/admin-web"
+  ],
+  "engines": {
+    "node": ">=20.11"
+  },
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "eslint .",
+    "test": "npm run test --workspaces --if-present",
+    "test:unit": "npm run test -w @mev/domain && npm run test -w @mev/nfc-contracts",
+    "db:up": "docker compose -f infra/docker-compose.yml up -d postgres mailpit",
+    "db:down": "docker compose -f infra/docker-compose.yml down",
+    "db:migrate": "npm run db:migrate -w @mev/api",
+    "db:seed": "npm run db:seed -w @mev/api",
+    "dev": "npm run dev -w @mev/api",
+    "setup": "npm install && npm run db:up && npm run build -w @mev/domain && npm run build -w @mev/nfc-contracts && npm run db:migrate && npm run db:seed"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "@types/node": "^22.10.2",
+    "eslint": "^9.17.0",
+    "globals": "^15.14.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.18.1",
+    "vitest": "^2.1.8"
+  }
+}

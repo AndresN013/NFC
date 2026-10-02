@@ -1,0 +1,170 @@
+/* Estilos globales de la web del aficionado. Mobile-first. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  /* Evita que iOS reescale el texto al girar el telefono. */
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--mev-fuente);
+  font-size: var(--mev-texto-md);
+  line-height: 1.6;
+  color: var(--mev-tinta);
+  background: var(--mev-fondo);
+}
+
+/* La columna a pantalla completa la aporta el layout del sitio, no el body:
+   la pantalla de escaneo gestiona su propia altura. */
+.mev-sitio {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  background: var(--mev-fondo-suave);
+}
+
+a {
+  color: var(--mev-verde-500);
+}
+
+img,
+video {
+  max-width: 100%;
+  height: auto;
+}
+
+.mev-contenedor {
+  width: 100%;
+  /* 34rem: ancho de lectura comodo; la experiencia es de telefono. */
+  max-width: 34rem;
+  margin: 0 auto;
+  padding: 0 var(--mev-esp-4);
+}
+
+.mev-principal {
+  flex: 1;
+  padding-top: var(--mev-esp-5);
+  padding-bottom: var(--mev-esp-7);
+  display: grid;
+  gap: var(--mev-esp-5);
+  align-content: start;
+}
+
+/* --- Cabecera ------------------------------------------------------------- */
+
+.mev-cabecera {
+  background: var(--mev-verde-900);
+  color: #fff;
+}
+
+.mev-cabecera__interior {
+  display: flex;
+  align-items: center;
+  min-height: 3.5rem;
+}
+
+.mev-marca {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mev-esp-3);
+  color: #fff;
+  text-decoration: none;
+  font-size: var(--mev-texto-md);
+}
+
+/* Glifo geometrico generico. NO es el escudo de ninguna marca real. */
+.mev-marca__glifo {
+  width: 1.5rem;
+  height: 1.5rem;
+  background: var(--mev-verde-500);
+  clip-path: polygon(50% 0%, 100% 25%, 100% 70%, 50% 100%, 0% 70%, 0% 25%);
+}
+
+/* --- Pie ------------------------------------------------------------------ */
+
+.mev-pie {
+  background: var(--mev-verde-900);
+  color: #d8e6e0;
+  padding: var(--mev-esp-5) 0;
+  font-size: var(--mev-texto-xs);
+}
+
+.mev-pie__enlaces {
+  list-style: none;
+  margin: 0 0 var(--mev-esp-4);
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--mev-esp-4);
+}
+
+.mev-pie a {
+  color: #9fd8c3;
+}
+
+.mev-pie__nota {
+  margin: 0 0 var(--mev-esp-2);
+  color: #a8bfb7;
+}
+
+/* --- Utilidades ----------------------------------------------------------- */
+
+.mev-pila {
+  display: grid;
+  gap: var(--mev-esp-4);
+}
+
+.mev-fila-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--mev-esp-3);
+}
+
+.mev-titulo-pagina {
+  margin: 0;
+  font-size: var(--mev-texto-xl);
+  line-height: 1.2;
+}
+
+.mev-subtitulo {
+  margin: var(--mev-esp-2) 0 0;
+  color: var(--mev-tinta-suave);
+  font-size: var(--mev-texto-sm);
+}
+
+.mev-lista-limpia {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--mev-esp-4);
+}
+
+.mev-enlace-bloque {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  border-radius: var(--mev-radio);
+}
+
+.mev-enlace-bloque:hover .mev-titulo-tarjeta {
+  text-decoration: underline;
+}
+
+.mev-titulo-tarjeta {
+  margin: 0;
+  font-size: var(--mev-texto-md);
+  font-weight: 700;
+}
+
+.mev-contenido-cuerpo {
+  margin: var(--mev-esp-2) 0 0;
+  font-size: var(--mev-texto-sm);
+  color: var(--mev-tinta-suave);
+}

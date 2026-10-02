@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      Tema puente: Compose gestiona todo el aspecto visual. Este estilo solo
+      existe para que la ventana de la Activity no parpadee en blanco antes de
+      que Compose dibuje el primer fotograma.
+    -->
+    <style name="Theme.MarathonNfcStudio" parent="android:Theme.Material.NoActionBar">
+        <item name="android:statusBarColor">@color/azul_marathon</item>
+        <item name="android:windowBackground">@color/fondo_planta</item>
+    </style>
+</resources>

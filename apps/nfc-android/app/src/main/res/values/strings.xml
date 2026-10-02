@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      La practica totalidad de los textos vive en el codigo Compose, junto a la
+      pantalla que los usa, para que un cambio de redaccion no obligue a saltar
+      entre dos archivos. Aqui solo queda lo que el sistema operativo necesita.
+    -->
+    <string name="nombre_app">Marathon NFC Studio</string>
+</resources>

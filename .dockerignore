@@ -1,0 +1,37 @@
+# Lo que NUNCA debe entrar en una imagen de contenedor.
+
+# Dependencias y artefactos: se instalan y construyen dentro de la imagen.
+node_modules
+**/node_modules
+**/dist
+**/.next
+**/build
+**/coverage
+*.tsbuildinfo
+
+# SECRETOS. Las variables llegan por el entorno del proveedor, nunca horneadas
+# en la imagen: una imagen con secretos dentro los filtra a cualquiera que la
+# descargue.
+.env
+.env.*
+!.env.example
+
+# Proyecto Android: no interviene en los servicios web.
+apps/nfc-android
+
+# Herramientas descargadas localmente.
+tools
+
+# Control de versiones y documentacion.
+.git
+.gitignore
+docs
+*.md
+!README.md
+
+# Entorno de desarrollo.
+.claude
+.vscode
+.idea
+.DS_Store
+infra/docker-compose.yml

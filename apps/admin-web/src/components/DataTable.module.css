@@ -1,0 +1,81 @@
+.contenedor {
+  background: var(--color-superficie);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+  box-shadow: var(--sombra);
+  overflow-x: auto;
+}
+
+.tabla {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.leyenda {
+  text-align: left;
+  padding: calc(var(--espacio) * 1.5);
+  font-weight: 600;
+  color: var(--color-texto);
+  border-bottom: 1px solid var(--color-borde);
+}
+
+.leyendaDetalle {
+  display: block;
+  font-weight: 400;
+  color: var(--color-texto-suave);
+  font-size: 0.85rem;
+  margin-top: 2px;
+}
+
+.tabla thead th {
+  background: var(--color-superficie-alt);
+  border-bottom: 1px solid var(--color-borde);
+  padding: var(--espacio) calc(var(--espacio) * 1.5);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-texto-suave);
+  white-space: nowrap;
+}
+
+.tabla tbody th,
+.tabla tbody td {
+  padding: var(--espacio) calc(var(--espacio) * 1.5);
+  border-bottom: 1px solid var(--color-borde);
+  vertical-align: top;
+}
+
+.tabla tbody th {
+  text-align: left;
+  font-weight: 600;
+}
+
+.tabla tbody tr:last-child th,
+.tabla tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.tabla tbody tr:hover {
+  background: color-mix(in srgb, var(--color-superficie-alt) 55%, transparent);
+}
+
+.numerica {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.estado {
+  padding: calc(var(--espacio) * 3);
+  text-align: center;
+  color: var(--color-texto-suave);
+}
+
+.estadoError {
+  color: var(--tono-peligro-texto);
+}
+
+.monoespaciada {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85rem;
+}

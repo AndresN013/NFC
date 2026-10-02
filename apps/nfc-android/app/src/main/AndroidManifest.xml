@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!--
+      NFC no es obligatorio: la aplicacion se instala tambien en telefonos sin
+      antena para poder usar el MODO SIMULACION en formacion de operarios.
+      `required="false"` es deliberado; la pantalla EstadoNfcTelefono bloquea
+      las operaciones reales cuando no hay hardware.
+    -->
+    <uses-permission android:name="android.permission.NFC" />
+    <uses-feature
+        android:name="android.hardware.nfc"
+        android:required="false" />
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- La camara se usa solo para leer el codigo de barras del jersey.
+         La lectura se delega a una app externa por Intent en esta version,
+         por lo que NO se declara el permiso de camara todavia. -->
+
+    <application
+        android:name=".MarathonNfcStudioApp"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/reglas_extraccion_datos"
+        android:fullBackupContent="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/nombre_app"
+        android:roundIcon="@mipmap/ic_launcher"
+        android:supportsRtl="false"
+        android:networkSecurityConfig="@xml/configuracion_seguridad_red"
+        android:theme="@style/Theme.MarathonNfcStudio"
+        tools:targetApi="34">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:screenOrientation="portrait"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:theme="@style/Theme.MarathonNfcStudio">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!--
+              NO se declaran intent-filters de TECH_DISCOVERED ni NDEF_DISCOVERED.
+              La deteccion se hace con NfcAdapter.enableReaderMode mientras la
+              pantalla de programacion esta en primer plano: asi el sistema no
+              muestra el dialogo de seleccion de app ni reproduce el sonido de
+              descubrimiento, y ninguna otra aplicacion compite por el tag.
+            -->
+        </activity>
+    </application>
+</manifest>

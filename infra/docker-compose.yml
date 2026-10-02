@@ -1,0 +1,39 @@
+# Infraestructura local de desarrollo para Marathon Escudo Vivo.
+# NINGUNA credencial de este archivo es valida fuera de localhost.
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: mev-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: marathon
+      POSTGRES_PASSWORD: marathon_dev_only
+      POSTGRES_DB: escudo_vivo
+    ports:
+      # 5434 en el host: 5432 y 5433 suelen estar ocupados por otros proyectos
+      # locales (Supabase, etc.). Si 5434 tambien lo esta, cambie este puerto y
+      # el de DATABASE_URL en su .env
+      - "5434:5432"
+    volumes:
+      - mev_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U marathon -d escudo_vivo"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # Servicio de correo simulado: captura todo el correo saliente, no lo entrega.
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: mev-mailpit
+    restart: unless-stopped
+    ports:
+      - "1025:1025" # SMTP
+      - "8025:8025" # UI web
+    environment:
+      MP_MAX_MESSAGES: 500
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+
+volumes:
+  mev_pgdata:

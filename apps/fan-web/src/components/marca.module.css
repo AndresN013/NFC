@@ -1,0 +1,114 @@
+/*
+ * IDENTIDAD CORPORATIVA DE MARATHON.
+ *
+ * Los valores de color son una APROXIMACION tomada de marathon.store. Antes de
+ * usar esto de cara al publico hay que sustituirlos por los oficiales del manual
+ * de marca, y colocar el logotipo real en `public/marca/marathon.svg` (ver
+ * LogoMarathon.tsx).
+ */
+.marca {
+  --marathon-azul: #0b3d91;
+  --marathon-azul-oscuro: #06276a;
+  --marathon-rojo: #e2231a;
+  --marathon-blanco: #ffffff;
+}
+
+/* --- Barra de marca ------------------------------------------------------- */
+
+.barra {
+  composes: marca;
+  background: var(--marathon-azul);
+  color: var(--marathon-blanco);
+  padding: 0.75rem var(--mev-esp-5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Franja roja inferior, como en la identidad de la tienda. */
+  border-bottom: 3px solid var(--marathon-rojo);
+}
+
+.barraCompacta {
+  padding: 0.625rem var(--mev-esp-4);
+}
+
+/* --- Logotipo ------------------------------------------------------------- */
+
+/*
+ * El logotipo se compone tipograficamente mientras no exista el archivo
+ * oficial. Es texto real, no una imagen: se lee con lector de pantalla, escala
+ * con el zoom y no pesa nada.
+ */
+.logo {
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 1;
+  text-transform: lowercase;
+  font-family:
+    'Helvetica Neue', Helvetica, Arial, system-ui, -apple-system, sans-serif;
+  /* Pequena correccion optica: el trazo de la marca es muy cerrado. */
+  word-spacing: -0.1em;
+}
+
+.logoBarra {
+  composes: logo;
+  font-size: 1.5rem;
+  color: var(--marathon-blanco);
+}
+
+.logoGrande {
+  composes: logo;
+  font-size: clamp(2rem, 11vw, 3rem);
+}
+
+/* --- Sello de autenticidad ------------------------------------------------ */
+
+/*
+ * Lo que el aficionado lee como "esto lo respalda Marathon". Va bajo el
+ * veredicto, no encima: primero se entera de que su camiseta esta bien, despues
+ * de quien lo garantiza.
+ */
+.sello {
+  composes: marca;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: var(--mev-esp-4) var(--mev-esp-5);
+  border-radius: var(--mev-radio);
+  background: var(--marathon-azul);
+  color: var(--marathon-blanco);
+}
+
+.selloTexto {
+  font-size: var(--mev-texto-xs);
+  line-height: 1.4;
+  text-align: left;
+  opacity: 0.92;
+}
+
+.selloLogo {
+  composes: logo;
+  font-size: 1.125rem;
+  color: var(--marathon-blanco);
+}
+
+/* --- Pie de marca --------------------------------------------------------- */
+
+.pieMarca {
+  composes: marca;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--mev-esp-2);
+  padding: var(--mev-esp-6) var(--mev-esp-5);
+  background: var(--marathon-azul-oscuro);
+  color: var(--marathon-blanco);
+  text-align: center;
+}
+
+.pieMarcaNota {
+  margin: 0;
+  font-size: var(--mev-texto-xs);
+  opacity: 0.75;
+  max-width: 24rem;
+}

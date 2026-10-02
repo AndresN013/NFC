@@ -1,0 +1,1172 @@
+// =============================================================================
+// Marathon Escudo Vivo - modelo de datos
+// =============================================================================
+// REGLA INVIOLABLE: en este esquema NO se almacena ninguna clave maestra NFC.
+// La tabla NfcKeyReference guarda UNICAMENTE una referencia opaca al custodio
+// (KMS/HSM/SAM). Ver docs/plan-gestion-claves.md
+//
+// Los tokens de alta entropia (tagToken, qrToken, transferToken) se guardan solo
+// como HASH con pimienta de servidor. El valor en claro existe durante la
+// programacion y se descarta.
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// -----------------------------------------------------------------------------
+// Identidad y acceso
+// -----------------------------------------------------------------------------
+
+enum Role {
+  SUPERADMIN
+  MARATHON_ADMIN
+  CLUB_ADMIN
+  PRODUCTION_OPERATOR
+  SUPPORT
+  CONTENT_AGENCY
+  SPONSOR
+}
+
+enum ScopeType {
+  GLOBAL
+  ORGANIZATION
+  CLUB
+  CAMPAIGN
+}
+
+/// Usuario del panel administrativo o de la app Android.
+/// Los aficionados NO son User: viven en FanAccount, separados a proposito para
+/// que el personal interno y las personas titulares no compartan tabla ni sesion.
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  /// Argon2id. Nunca se registra ni se devuelve.
+  passwordHash String
+  displayName  String
+  active       Boolean  @default(true)
+  /// Preparado para MFA en fase 2. El secreto ira cifrado con clave de KMS.
+  mfaEnabled   Boolean  @default(false)
+  mfaSecretRef String?
+  lastLoginAt  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  deletedAt    DateTime?
+
+  roleAssignments RoleAssignment[]
+  sessions        UserSession[]
+  auditEvents     AuditEvent[]
+  personalizationJobs PersonalizationJob[]
+  operatedDevices AuthorizedDevice[]  @relation("DeviceOperator")
+  assignedCases   SupportCase[]       @relation("CaseAssignee")
+  supportNotes    SupportCaseNote[]   @relation("NoteAuthor")
+
+  @@index([email])
+  @@index([active])
+}
+
+/// Asignacion de rol con alcance. Un usuario puede tener varias.
+model RoleAssignment {
+  id        String    @id @default(uuid())
+  userId    String
+  role      Role
+  scopeType ScopeType @default(GLOBAL)
+  /// null cuando scopeType = GLOBAL
+  scopeId   String?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, role, scopeType, scopeId])
+  @@index([userId])
+}
+
+/// Sesion del panel o de la app Android. Corta duracion, revocable.
+model UserSession {
+  id           String   @id @default(uuid())
+  userId       String
+  /// Hash del token de sesion. El token en claro solo existe en el cliente.
+  tokenHash    String   @unique
+  /// Huella del dispositivo autorizado, solo para sesiones de la app Android.
+  deviceId     String?
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  createdAt    DateTime @default(now())
+  /// IP truncada. Ver politica de logs.
+  lastIpPrefix String?
+
+  user   User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  device AuthorizedDevice? @relation(fields: [deviceId], references: [id])
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// -----------------------------------------------------------------------------
+// Organizacion y catalogo
+// -----------------------------------------------------------------------------
+
+model Organization {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  /// Pais de operacion, ISO 3166-1 alpha-2
+  country   String   @default("EC")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  clubs           Club[]
+  productionOrders ProductionOrder[]
+  sponsors        Sponsor[]
+}
+
+model Club {
+  id             String   @id @default(uuid())
+  organizationId String
+  name           String
+  /// Identificador legible en URL
+  slug           String   @unique
+  /// Ruta del escudo. Solo activos incluidos en el repositorio.
+  crestAssetPath String?
+  primaryColor   String   @default("#0B3D2E")
+  secondaryColor String   @default("#F5F5F5")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  deletedAt      DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  seasons      Season[]
+  players      Player[]
+  jerseyModels JerseyModel[]
+  matches      Match[]
+  contentItems ContentItem[]
+
+  @@index([organizationId])
+}
+
+model Season {
+  id        String   @id @default(uuid())
+  clubId    String
+  name      String
+  startDate DateTime
+  endDate   DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  club         Club          @relation(fields: [clubId], references: [id])
+  jerseyModels JerseyModel[]
+  players      Player[]
+  matches      Match[]
+
+  @@unique([clubId, name])
+  @@index([clubId])
+}
+
+model Player {
+  id           String   @id @default(uuid())
+  clubId       String
+  seasonId     String?
+  fullName     String
+  /// Dorsal. Alimenta el contenido dinamico.
+  shirtNumber  Int?
+  position     String?
+  portraitPath String?
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  club        Club          @relation(fields: [clubId], references: [id])
+  season      Season?       @relation(fields: [seasonId], references: [id])
+  jerseyUnits JerseyUnit[]
+
+  @@index([clubId, seasonId])
+}
+
+enum JerseyEdition {
+  HOME
+  AWAY
+  THIRD
+  GOALKEEPER
+  SPECIAL
+  COMMEMORATIVE
+}
+
+model JerseyModel {
+  id          String        @id @default(uuid())
+  clubId      String
+  seasonId    String
+  name        String
+  edition     JerseyEdition @default(HOME)
+  description String?
+  imagePath   String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  deletedAt   DateTime?
+
+  club   Club   @relation(fields: [clubId], references: [id])
+  season Season @relation(fields: [seasonId], references: [id])
+  skus   Sku[]
+  units  JerseyUnit[]
+
+  @@unique([clubId, seasonId, name, edition])
+  @@index([clubId])
+}
+
+model Sku {
+  id            String   @id @default(uuid())
+  jerseyModelId String
+  /// Codigo comercial. Es la clave que usara la integracion con la tienda.
+  code          String   @unique
+  size          String
+  fit           String   @default("REGULAR")
+  /// Precio en centavos de USD (Ecuador usa USD). Entero para evitar flotantes.
+  priceCents    Int?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  jerseyModel JerseyModel  @relation(fields: [jerseyModelId], references: [id])
+  units       JerseyUnit[]
+
+  @@index([jerseyModelId])
+}
+
+// -----------------------------------------------------------------------------
+// Produccion
+// -----------------------------------------------------------------------------
+
+enum ProductionOrderState {
+  DRAFT
+  OPEN
+  IN_PROGRESS
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
+model ProductionOrder {
+  id             String               @id @default(uuid())
+  organizationId String
+  /// Codigo legible para el operario, p.ej. "OP-2026-0001"
+  code           String               @unique
+  state          ProductionOrderState @default(DRAFT)
+  plannedUnits   Int
+  notes          String?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  organization Organization         @relation(fields: [organizationId], references: [id])
+  batches      ProductionBatch[]
+  units        JerseyUnit[]
+  jobs         PersonalizationJob[]
+
+  @@index([state])
+}
+
+/// Lote de chips recibido del proveedor.
+model ProductionBatch {
+  id                String   @id @default(uuid())
+  productionOrderId String?
+  code              String   @unique
+  supplierName      String?
+  supplierLotRef    String?
+  receivedAt        DateTime @default(now())
+  /// Marcado por control de calidad o por el motor de riesgo.
+  flagged           Boolean  @default(false)
+  flagReason        String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  productionOrder ProductionOrder? @relation(fields: [productionOrderId], references: [id])
+  chips           NfcChip[]
+  emblems         Emblem[]
+
+  @@index([productionOrderId])
+  @@index([flagged])
+}
+
+/// Puesto fisico de programacion.
+model ProgrammingStation {
+  id        String   @id @default(uuid())
+  code      String   @unique
+  name      String
+  location  String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  devices AuthorizedDevice[]
+  jobs    PersonalizationJob[]
+}
+
+/// Telefono Android autorizado para programar.
+model AuthorizedDevice {
+  id         String   @id @default(uuid())
+  stationId  String?
+  /// Identificador estable del dispositivo, generado en el primer registro.
+  deviceId   String   @unique
+  label      String
+  model      String?
+  osVersion  String?
+  active     Boolean  @default(true)
+  /// Preparado para Play Integrity API en fase 2. Aun sin verificar.
+  attestationRef String?
+  lastSeenAt DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  station            ProgrammingStation? @relation(fields: [stationId], references: [id])
+  primaryOperator    User?               @relation("DeviceOperator", fields: [primaryOperatorId], references: [id])
+  primaryOperatorId  String?
+  sessions           UserSession[]
+  jobs               PersonalizationJob[]
+
+  @@index([active])
+}
+
+// -----------------------------------------------------------------------------
+// Chip, emblema y unidad
+// -----------------------------------------------------------------------------
+
+enum ChipType {
+  NTAG213
+  NTAG215
+  NTAG216
+  NTAG424DNA
+  UNKNOWN
+}
+
+enum ChipState {
+  RECEIVED
+  VALIDATED
+  RESERVED
+  PERSONALIZING
+  PROGRAMMED
+  VERIFIED
+  LINKED
+  READY_FOR_HEAT_PRESS
+  POST_PRESS_PASSED
+  ACTIVATED
+  QUARANTINED
+  REVOKED
+  DESTROYED
+}
+
+model NfcChip {
+  id        String    @id @default(uuid())
+  batchId   String?
+  /// UID del chip en hexadecimal. Dato sensible: requiere permiso `chips:read`.
+  /// Unico: impide registrar dos veces el mismo chip fisico.
+  uid       String    @unique
+  chipType  ChipType  @default(UNKNOWN)
+  state     ChipState @default(RECEIVED)
+
+  /// Hash del token grabado en el registro NDEF. El token en claro NO se guarda.
+  tagTokenHash String? @unique
+  /// Momento en que se grabo, para auditoria.
+  programmedAt DateTime?
+  verifiedAt   DateTime?
+  activatedAt  DateTime?
+  revokedAt    DateTime?
+  revokeReason String?
+
+  /// Contador de lecturas aceptado mas alto. Base del control anti-replay.
+  lastAcceptedCounter Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  batch         ProductionBatch?     @relation(fields: [batchId], references: [id])
+  emblem        Emblem?
+  keyReferences NfcKeyReference[]
+  jobs          PersonalizationJob[]
+  verificationEvents VerificationEvent[]
+
+  @@index([state])
+  @@index([batchId])
+}
+
+/// Referencia a una clave custodiada externamente.
+/// AQUI NO HAY NINGUNA CLAVE. Solo el puntero al custodio.
+model NfcKeyReference {
+  id        String   @id @default(uuid())
+  chipId    String
+  /// Rol de la clave: APP_MASTER, SDM_META_READ, SDM_FILE_READ, etc.
+  keyRole   String
+  /// Identificador en el custodio (ARN de KMS, slot de HSM, indice de SAM).
+  reference String
+  custodian String   @default("none")
+  version   Int      @default(1)
+  createdAt DateTime @default(now())
+  rotatedAt DateTime?
+
+  chip NfcChip @relation(fields: [chipId], references: [id], onDelete: Cascade)
+
+  @@unique([chipId, keyRole, version])
+  @@index([chipId])
+}
+
+model Emblem {
+  id          String   @id @default(uuid())
+  batchId     String?
+  chipId      String?  @unique
+  /// Codigo fisico impreso en el emblema, si lo tiene.
+  code        String   @unique
+  /// Tipo de emblema: escudo principal, etiqueta interior, etc.
+  kind        String   @default("CREST")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  batch      ProductionBatch? @relation(fields: [batchId], references: [id])
+  chip       NfcChip?         @relation(fields: [chipId], references: [id])
+  jerseyUnit JerseyUnit?
+
+  @@index([batchId])
+}
+
+enum JerseyUnitState {
+  PLANNED
+  IN_PRODUCTION
+  READY
+  ACTIVATED
+  SOLD
+  QUARANTINED
+  REVOKED
+}
+
+enum UnitCondition {
+  NEW
+  GIFTED
+  USED
+  TRANSFERRED
+  COLLECTION
+}
+
+model JerseyUnit {
+  id            String          @id @default(uuid())
+  jerseyModelId String
+  skuId         String?
+  playerId      String?
+  emblemId      String?         @unique
+  productionOrderId String?
+
+  /// Referencia publica mostrable: MEV-XXXXXXXX. Aleatoria, no enumerable.
+  publicRef     String          @unique
+  /// Hash del token del QR de respaldo. Espacio de identificadores distinto
+  /// del token NFC, para que fotografiar el QR no revele el secreto del chip.
+  qrTokenHash   String?         @unique
+  qrRotatedAt   DateTime?
+  qrExpiresAt   DateTime?
+
+  state         JerseyUnitState @default(PLANNED)
+  condition     UnitCondition   @default(NEW)
+  shirtNumber   Int?
+  playerNameOnShirt String?
+
+  activatedAt   DateTime?
+  soldAt        DateTime?
+  revokedAt     DateTime?
+  revokeReason  String?
+
+  /// Contador acumulado de interacciones. Alimenta el contenido dinamico.
+  interactionCount Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  jerseyModel     JerseyModel      @relation(fields: [jerseyModelId], references: [id])
+  sku             Sku?             @relation(fields: [skuId], references: [id])
+  player          Player?          @relation(fields: [playerId], references: [id])
+  emblem          Emblem?          @relation(fields: [emblemId], references: [id])
+  productionOrder ProductionOrder? @relation(fields: [productionOrderId], references: [id])
+
+  ownerships       Ownership[]
+  transfers        OwnershipTransfer[]
+  certificate      DigitalCertificate?
+  verificationEvents VerificationEvent[]
+  riskAlerts       RiskAlert[]
+  postPressChecks  PostPressCheck[]
+  supportCases     SupportCase[]
+  rewardRedemptions RewardRedemption[]
+
+  @@index([state])
+  @@index([jerseyModelId])
+  @@index([productionOrderId])
+}
+
+/// Registro de la comprobacion posterior al termosellado.
+model PostPressCheck {
+  id           String   @id @default(uuid())
+  jerseyUnitId String
+  passed       Boolean
+  readable     Boolean
+  contentIntact Boolean
+  /// Parametros de la prensa, para correlacionar fallos con la receta.
+  temperatureC Int?
+  pressureBar  Decimal? @db.Decimal(6, 2)
+  durationSec  Int?
+  operatorId   String?
+  deviceId     String?
+  providerId   String
+  /// `true` si el proveedor era una simulacion. Se conserva para no confundir
+  /// una prueba simulada con una prueba fisica real.
+  simulated    Boolean  @default(false)
+  detail       String?
+  createdAt    DateTime @default(now())
+
+  jerseyUnit JerseyUnit @relation(fields: [jerseyUnitId], references: [id])
+
+  @@index([jerseyUnitId])
+  @@index([passed])
+}
+
+// -----------------------------------------------------------------------------
+// Trabajos de personalizacion
+// -----------------------------------------------------------------------------
+
+enum PersonalizationJobState {
+  PENDING
+  IN_PROGRESS
+  WRITTEN
+  VERIFIED
+  FAILED
+  CANCELLED
+}
+
+model PersonalizationJob {
+  id                String                  @id @default(uuid())
+  productionOrderId String
+  chipId            String?
+  operatorId        String
+  deviceId          String?
+  stationId         String?
+
+  state             PersonalizationJobState @default(PENDING)
+  providerId        String
+  /// `true` cuando el trabajo se ejecuto con el proveedor simulado.
+  simulated         Boolean                 @default(false)
+
+  /// Clave de idempotencia enviada por el cliente. Repetir la misma peticion
+  /// devuelve el mismo resultado en lugar de programar dos veces.
+  idempotencyKey    String                  @unique
+  /// URI que se instruyo grabar. No incluye secretos mas alla del token.
+  targetUri         String?
+  /// Hash del payload escrito, para comparar en la verificacion.
+  writtenPayloadHash String?
+  attempts          Int                     @default(0)
+  lastError         String?
+
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  productionOrder ProductionOrder     @relation(fields: [productionOrderId], references: [id])
+  chip            NfcChip?            @relation(fields: [chipId], references: [id])
+  operator        User                @relation(fields: [operatorId], references: [id])
+  device          AuthorizedDevice?   @relation(fields: [deviceId], references: [id])
+  station         ProgrammingStation? @relation(fields: [stationId], references: [id])
+
+  @@index([productionOrderId])
+  @@index([state])
+  @@index([chipId])
+}
+
+// -----------------------------------------------------------------------------
+// Verificacion y riesgo
+// -----------------------------------------------------------------------------
+
+enum TrustLevel {
+  VERIFIED
+  IDENTIFIED_ONLY
+  SUSPICIOUS
+  UNVERIFIABLE
+  REVOKED
+  NOT_ACTIVATED
+}
+
+enum VerificationMethod {
+  NFC_CRYPTOGRAPHIC
+  NFC_STATIC_URL
+  QR_CODE
+  MANUAL_LOOKUP
+}
+
+enum RiskLevel {
+  NONE
+  LOW
+  MEDIUM
+  HIGH
+}
+
+model VerificationEvent {
+  id           String             @id @default(uuid())
+  jerseyUnitId String?
+  chipId       String?
+
+  method       VerificationMethod
+  trustLevel   TrustLevel
+  riskLevel    RiskLevel
+  riskScore    Int                @default(0)
+  /// Codigos de razon internos, separados por coma. Nunca se muestran al fan.
+  reasonCodes  String             @default("")
+
+  /// Contador reportado por el chip en esta lectura, si lo hubo.
+  reportedCounter Int?
+  /// Huella del mensaje autenticado, para detectar replay sin guardarlo entero.
+  messageFingerprint String?
+
+  /// IP truncada y seudonimizada. Nunca la IP completa.
+  ipPseudonym  String?
+  /// Huella seudonima del dispositivo. No es un identificador publicitario.
+  deviceFingerprint String?
+  /// Pais aproximado. Sin ciudad ni coordenadas salvo consentimiento.
+  countryCode  String?
+  /// Idioma preferido, para servir contenido. No es dato sensible.
+  language     String?
+
+  /// `true` cuando la evidencia vino de un proveedor simulado.
+  simulated    Boolean            @default(false)
+
+  createdAt    DateTime           @default(now())
+
+  jerseyUnit JerseyUnit? @relation(fields: [jerseyUnitId], references: [id])
+  chip       NfcChip?    @relation(fields: [chipId], references: [id])
+  riskAlerts RiskAlert[]
+
+  @@index([jerseyUnitId, createdAt])
+  @@index([createdAt])
+  @@index([trustLevel])
+  @@index([messageFingerprint])
+}
+
+enum RiskAlertState {
+  OPEN
+  IN_REVIEW
+  CONFIRMED
+  DISMISSED
+}
+
+model RiskAlert {
+  id           String         @id @default(uuid())
+  jerseyUnitId String?
+  verificationEventId String?
+
+  state        RiskAlertState @default(OPEN)
+  riskLevel    RiskLevel
+  reasonCodes  String
+  summary      String
+  /// Notas de la revision humana.
+  reviewNotes  String?
+  reviewedById String?
+  reviewedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  jerseyUnit        JerseyUnit?        @relation(fields: [jerseyUnitId], references: [id])
+  verificationEvent VerificationEvent? @relation(fields: [verificationEventId], references: [id])
+
+  @@index([state])
+  @@index([riskLevel])
+  @@index([jerseyUnitId])
+}
+
+// -----------------------------------------------------------------------------
+// Aficionados, propiedad y certificados
+// -----------------------------------------------------------------------------
+
+/// Cuenta del aficionado. Tabla SEPARADA de User a proposito.
+/// El registro es OPCIONAL: verificar un jersey no lo requiere.
+model FanAccount {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String?
+  displayName  String?
+  /// Idioma preferido. La plataforma esta preparada para varios idiomas.
+  locale       String    @default("es")
+  emailVerifiedAt DateTime?
+  loyaltyTier  Int       @default(0)
+  active       Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  /// Borrado logico: la solicitud de eliminacion marca aqui y un job purga.
+  deletedAt    DateTime?
+
+  ownerships        Ownership[]
+  initiatedTransfers OwnershipTransfer[] @relation("TransferFrom")
+  receivedTransfers  OwnershipTransfer[] @relation("TransferTo")
+  consents          Consent[]
+  privacyRequests   PrivacyRequest[]
+  supportCases      SupportCase[]
+  rewardRedemptions RewardRedemption[]
+  sessions          FanSession[]
+
+  @@index([email])
+}
+
+model FanSession {
+  id        String   @id @default(uuid())
+  fanId     String
+  tokenHash String   @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+
+  fan FanAccount @relation(fields: [fanId], references: [id], onDelete: Cascade)
+
+  @@index([fanId])
+  @@index([expiresAt])
+}
+
+model Ownership {
+  id           String    @id @default(uuid())
+  jerseyUnitId String
+  fanId        String
+  /// Como se obtuvo: CLAIM, TRANSFER, PURCHASE_IMPORT
+  acquiredVia  String    @default("CLAIM")
+  startedAt    DateTime  @default(now())
+  /// null = titularidad activa. El indice unico parcial impide dos activas.
+  endedAt      DateTime?
+  createdAt    DateTime  @default(now())
+
+  jerseyUnit JerseyUnit @relation(fields: [jerseyUnitId], references: [id])
+  fan        FanAccount @relation(fields: [fanId], references: [id])
+
+  @@index([jerseyUnitId])
+  @@index([fanId])
+}
+
+enum TransferState {
+  PENDING
+  ACCEPTED
+  CANCELLED
+  EXPIRED
+  REJECTED
+}
+
+model OwnershipTransfer {
+  id           String        @id @default(uuid())
+  jerseyUnitId String
+  fromFanId    String
+  toFanId      String?
+  /// Correo de destino cuando la persona aun no tiene cuenta.
+  toEmail      String?
+
+  state        TransferState @default(PENDING)
+  /// Hash del token de invitacion de un solo uso.
+  tokenHash    String        @unique
+  expiresAt    DateTime
+  acceptedAt   DateTime?
+  cancelledAt  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  jerseyUnit JerseyUnit  @relation(fields: [jerseyUnitId], references: [id])
+  fromFan    FanAccount  @relation("TransferFrom", fields: [fromFanId], references: [id])
+  toFan      FanAccount? @relation("TransferTo", fields: [toFanId], references: [id])
+
+  @@index([jerseyUnitId])
+  @@index([state])
+  @@index([expiresAt])
+}
+
+model DigitalCertificate {
+  id           String   @id @default(uuid())
+  jerseyUnitId String   @unique
+  /// Numero de serie publico del certificado.
+  serial       String   @unique
+  issuedAt     DateTime @default(now())
+  /// Version del formato, para poder evolucionar sin romper certificados viejos.
+  formatVersion Int     @default(1)
+  /// Firma del contenido del certificado emitida por el servidor.
+  /// PENDIENTE: firmar con clave custodiada en KMS. Ver plan de gestion de claves.
+  signature    String?
+  revokedAt    DateTime?
+
+  jerseyUnit JerseyUnit @relation(fields: [jerseyUnitId], references: [id])
+}
+
+// -----------------------------------------------------------------------------
+// Contenido, campanas y recompensas
+// -----------------------------------------------------------------------------
+
+enum ContentKind {
+  HERO
+  STORY
+  VIDEO
+  QUIZ
+  POLL
+  REWARD_TEASER
+  SPONSOR_MESSAGE
+  MATCH_CARD
+  CARE_INSTRUCTIONS
+}
+
+model ContentItem {
+  id         String      @id @default(uuid())
+  clubId     String?
+  campaignId String?
+  kind       ContentKind @default(STORY)
+  /// Textos por idioma: { "es": "...", "en": "..." }
+  title      Json
+  body       Json
+  mediaUrl   String?
+  /// Obligatorio cuando hay imagen: accesibilidad.
+  mediaAlt   Json?
+  captionsUrl String?
+  ctaLabel   Json?
+  ctaHref    String?
+  priority   Int         @default(0)
+  estimatedMediaBytes Int?
+  active     Boolean     @default(true)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  deletedAt  DateTime?
+
+  club      Club?         @relation(fields: [clubId], references: [id])
+  campaign  Campaign?     @relation(fields: [campaignId], references: [id])
+  rules     ContentRule[]
+
+  @@index([clubId])
+  @@index([active])
+}
+
+/// Condiciones de un item de contenido. Se guardan como JSON para poder
+/// evolucionar sin migraciones, con validacion por esquema en la API.
+model ContentRule {
+  id            String   @id @default(uuid())
+  contentItemId String
+  conditions    Json
+  activeFrom    DateTime?
+  activeUntil   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  contentItem ContentItem @relation(fields: [contentItemId], references: [id], onDelete: Cascade)
+
+  @@index([contentItemId])
+}
+
+enum MatchPhase {
+  UPCOMING
+  LIVE
+  FINISHED
+}
+
+model Match {
+  id         String     @id @default(uuid())
+  clubId     String
+  seasonId   String
+  opponent   String
+  kickoffAt  DateTime
+  venue      String?
+  isHome     Boolean    @default(true)
+  phase      MatchPhase @default(UPCOMING)
+  goalsFor   Int?
+  goalsAgainst Int?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  club   Club   @relation(fields: [clubId], references: [id])
+  season Season @relation(fields: [seasonId], references: [id])
+
+  @@index([clubId, kickoffAt])
+}
+
+model Sponsor {
+  id             String   @id @default(uuid())
+  organizationId String
+  name           String
+  logoPath       String?
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  campaigns    Campaign[]
+
+  @@index([organizationId])
+}
+
+model Campaign {
+  id         String   @id @default(uuid())
+  sponsorId  String?
+  name       String
+  startsAt   DateTime
+  endsAt     DateTime
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  sponsor      Sponsor?      @relation(fields: [sponsorId], references: [id])
+  contentItems ContentItem[]
+  rewards      Reward[]
+  metrics      CampaignMetric[]
+
+  @@index([sponsorId])
+  @@index([active])
+}
+
+/// Metrica AGREGADA precalculada por campana.
+/// Es lo unico que ve un patrocinador. No contiene filas por persona.
+model CampaignMetric {
+  id         String   @id @default(uuid())
+  campaignId String
+  metricKey  String
+  /// Dia al que corresponde el agregado.
+  bucketDate DateTime @db.Date
+  value      Int
+  /// `true` si el valor fue suprimido por cohorte demasiado pequena.
+  suppressed Boolean  @default(false)
+  updatedAt  DateTime @updatedAt
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, metricKey, bucketDate])
+  @@index([campaignId])
+}
+
+model Reward {
+  id         String   @id @default(uuid())
+  campaignId String?
+  name       String
+  description String?
+  /// Tipo: DISCOUNT_CODE, CONTENT_UNLOCK, RAFFLE_ENTRY
+  kind       String   @default("CONTENT_UNLOCK")
+  /// Nivel de confianza minimo exigido. Una lectura sospechosa no canjea.
+  minTrustLevel TrustLevel @default(IDENTIFIED_ONLY)
+  /// Requiere cuenta del aficionado.
+  requiresAccount Boolean @default(true)
+  stock      Int?
+  startsAt   DateTime?
+  endsAt     DateTime?
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  campaign    Campaign?          @relation(fields: [campaignId], references: [id])
+  redemptions RewardRedemption[]
+
+  @@index([campaignId])
+  @@index([active])
+}
+
+model RewardRedemption {
+  id           String   @id @default(uuid())
+  rewardId     String
+  fanId        String
+  jerseyUnitId String?
+  /// Codigo entregado, si aplica. Se guarda hasheado si es canjeable por dinero.
+  codeHash     String?
+  redeemedAt   DateTime @default(now())
+
+  reward     Reward      @relation(fields: [rewardId], references: [id])
+  fan        FanAccount  @relation(fields: [fanId], references: [id])
+  jerseyUnit JerseyUnit? @relation(fields: [jerseyUnitId], references: [id])
+
+  /// Una recompensa por aficionado y unidad: impide canjes repetidos.
+  @@unique([rewardId, fanId, jerseyUnitId])
+  @@index([fanId])
+}
+
+// -----------------------------------------------------------------------------
+// Privacidad, soporte y auditoria
+// -----------------------------------------------------------------------------
+
+enum ConsentPurpose {
+  MARKETING
+  LOCATION
+  SPONSOR_ANALYTICS
+  PERSONALIZATION
+  CLUB_COMMUNICATIONS
+}
+
+model Consent {
+  id            String         @id @default(uuid())
+  fanId         String
+  purpose       ConsentPurpose
+  granted       Boolean
+  grantedAt     DateTime?
+  revokedAt     DateTime?
+  /// Version del texto informativo que la persona vio al decidir.
+  policyVersion String
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  fan FanAccount @relation(fields: [fanId], references: [id], onDelete: Cascade)
+
+  @@unique([fanId, purpose])
+  @@index([fanId])
+}
+
+enum PrivacyRequestType {
+  ACCESS
+  RECTIFICATION
+  DELETION
+  OPPOSITION
+  PORTABILITY
+  CONSENT_WITHDRAWAL
+}
+
+enum PrivacyRequestState {
+  RECEIVED
+  IDENTITY_PENDING
+  IN_PROGRESS
+  COMPLETED
+  REJECTED
+}
+
+model PrivacyRequest {
+  id        String              @id @default(uuid())
+  fanId     String?
+  /// Correo de contacto cuando la solicitud llega sin cuenta.
+  email     String
+  type      PrivacyRequestType
+  state     PrivacyRequestState @default(RECEIVED)
+  details   String?
+  /// Fecha limite interna de atencion.
+  dueAt     DateTime
+  resolvedAt DateTime?
+  resolution String?
+  /// Usuario interno que resolvio la solicitud.
+  resolvedById String?
+  /// `true` cuando la eliminacion se ejecuto de verdad sobre los datos, no solo
+  /// cuando el caso se marco como atendido.
+  deletionExecutedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  fan FanAccount? @relation(fields: [fanId], references: [id])
+
+  @@index([state])
+  @@index([dueAt])
+}
+
+enum SupportCaseState {
+  OPEN
+  IN_PROGRESS
+  WAITING_CUSTOMER
+  RESOLVED
+  CLOSED
+}
+
+model SupportCase {
+  id           String           @id @default(uuid())
+  jerseyUnitId String?
+  fanId        String?
+  /// Correo de contacto para casos sin cuenta.
+  contactEmail String
+  /// Motivo: AUTHENTICITY_DOUBT, WARRANTY, NFC_NOT_READING, TRANSFER_ISSUE, OTHER
+  reason       String
+  state        SupportCaseState @default(OPEN)
+  subject      String
+  description  String
+  assigneeId   String?
+  resolvedAt   DateTime?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  jerseyUnit JerseyUnit? @relation(fields: [jerseyUnitId], references: [id])
+  fan        FanAccount? @relation(fields: [fanId], references: [id])
+  assignee   User?       @relation("CaseAssignee", fields: [assigneeId], references: [id])
+  notes      SupportCaseNote[]
+
+  @@index([state])
+  @@index([jerseyUnitId])
+  @@index([assigneeId])
+}
+
+/// Nota de un caso de soporte.
+///
+/// `visibleToCustomer` distingue la nota interna de la respuesta a la persona.
+/// La distincion es deliberada y no cosmetica: una nota interna puede contener
+/// una hipotesis sobre una posible falsificacion, y publicarla por error seria
+/// acusar a un cliente sin fundamento. Por eso el valor por defecto es `false`:
+/// para que una nota salga hacia fuera hay que pedirlo explicitamente.
+model SupportCaseNote {
+  id                String   @id @default(uuid())
+  caseId            String
+  /// Autor interno. null cuando la nota la genero el sistema.
+  authorId          String?
+  body              String
+  visibleToCustomer Boolean  @default(false)
+  createdAt         DateTime @default(now())
+
+  supportCase SupportCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  author      User?       @relation("NoteAuthor", fields: [authorId], references: [id])
+
+  @@index([caseId, createdAt])
+}
+
+/// Registro de auditoria de acciones administrativas y de produccion.
+/// Solo se anade; nunca se actualiza ni se borra desde la aplicacion.
+model AuditEvent {
+  id         String   @id @default(uuid())
+  actorId    String?
+  /// Tipo de actor cuando no es un User: SYSTEM, FAN, ANONYMOUS
+  actorType  String   @default("USER")
+  action     String
+  entityType String
+  entityId   String?
+  /// Contexto adicional. NUNCA contiene secretos, claves ni tokens en claro.
+  metadata   Json?
+  ipPrefix   String?
+  createdAt  DateTime @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id])
+
+  @@index([actorId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@index([action])
+}
+
+/// Registro de claves de idempotencia ya procesadas.
+/// Permite que el operario reintente sin miedo a duplicar una operacion.
+model IdempotencyRecord {
+  id           String   @id @default(uuid())
+  key          String   @unique
+  /// Ruta y metodo, para que la misma clave en otro endpoint no colisione.
+  endpoint     String
+  /// Hash del cuerpo de la peticion: detecta reutilizar la clave con otro cuerpo.
+  requestHash  String
+  statusCode   Int
+  responseBody Json
+  createdAt    DateTime @default(now())
+  expiresAt    DateTime
+
+  @@index([expiresAt])
+}
+
+/// Analitica agregada. Una fila por evento, dia y combinacion de dimensiones.
+/// No contiene ningun identificador de persona ni de dispositivo.
+///
+/// LAS DIMENSIONES NO SON ANULABLES A PROPOSITO.
+/// En PostgreSQL, dos filas con NULL en una columna de un indice unico NO
+/// colisionan, porque NULL no es igual a NULL. Con columnas anulables el upsert
+/// diario habria insertado una fila nueva en cada ejecucion en lugar de
+/// actualizar la existente, acumulando duplicados silenciosamente.
+/// Por eso la ausencia de dimension se representa con cadena vacia.
+model AnalyticsDaily {
+  id         String   @id @default(uuid())
+  bucketDate DateTime @db.Date
+  event      String
+  /// Dimensiones agregadas. Cadena vacia = "sin desglosar por esta dimension".
+  clubId        String @default("")
+  jerseyModelId String @default("")
+  trustLevel    String @default("")
+  countryCode   String @default("")
+  count      Int      @default(0)
+  updatedAt  DateTime @updatedAt
+
+  @@unique([bucketDate, event, clubId, jerseyModelId, trustLevel, countryCode])
+  @@index([bucketDate])
+  @@index([event])
+}

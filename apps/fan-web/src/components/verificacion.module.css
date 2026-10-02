@@ -1,0 +1,275 @@
+/*
+ * Pantalla de verificacion del aficionado.
+ *
+ * Mobile-first y de una sola columna. El heroe ocupa la parte alta de la
+ * pantalla para que el veredicto se lea sin desplazar, que es todo lo que la
+ * mayoria de la gente va a hacer.
+ */
+
+/*
+ * PALETA PROPIA DE ESTA PANTALLA.
+ *
+ * No usa las variables globales del sitio a proposito. Con ellas, en modo
+ * oscuro el cuerpo quedaba en negro casi puro y el boton verde desaparecia
+ * contra el fondo: no estaba roto, pero lo parecia, que para el aficionado es
+ * lo mismo.
+ *
+ * Aqui el fondo se tine con el color del club (`--club-rgb`, que inyecta el
+ * componente) para que la pantalla se lea como una sola pieza y no como un
+ * bloque de color sobre un vacio negro.
+ */
+.pantalla {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+
+  --v-fondo: #ffffff;
+  --v-fondo-suave: #f4f7f9;
+  --v-tinta: #10151a;
+  --v-tinta-suave: #51606c;
+  --v-linea: #e1e7eb;
+  --v-boton: var(--mev-verde-700);
+  --v-boton-tinta: #ffffff;
+  --v-boton-borde: var(--mev-verde-500);
+
+  background: var(--v-fondo);
+  color: var(--v-tinta);
+}
+
+@media (prefers-color-scheme: dark) {
+  .pantalla {
+    /* Base oscura TENIDA con el color del club, no negro puro. */
+    --v-fondo: #0f1417;
+    --v-fondo-suave: rgba(var(--club-rgb, 20, 30, 35), 0.22);
+    --v-tinta: #f1f5f7;
+    --v-tinta-suave: #a7b6c0;
+    --v-linea: rgba(255, 255, 255, 0.12);
+    /* Verde mas claro: el de marca sobre fondo oscuro parecia desactivado. */
+    --v-boton: var(--mev-verde-500);
+    --v-boton-tinta: #ffffff;
+    --v-boton-borde: #4fbf96;
+  }
+
+  /* Degradado que continua el color del club hacia abajo, de modo que el corte
+     entre el heroe y el cuerpo deje de parecer un vacio. */
+  .cuerpo {
+    background: linear-gradient(
+      to bottom,
+      rgba(var(--club-rgb, 20, 30, 35), 0.38),
+      rgba(var(--club-rgb, 20, 30, 35), 0) 18rem
+    );
+  }
+}
+
+/* --- Heroe ---------------------------------------------------------------- */
+
+.heroe {
+  padding: var(--mev-esp-7) var(--mev-esp-5) var(--mev-esp-6);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* Se estira para llenar la altura disponible si el contenido es corto. */
+  flex: 0 0 auto;
+}
+
+.simbolo {
+  width: 4.5rem;
+  height: 4.5rem;
+  display: grid;
+  place-items: center;
+  border: 3px solid;
+  border-radius: 50%;
+  font-size: 2.25rem;
+  font-weight: 700;
+  line-height: 1;
+  margin-bottom: var(--mev-esp-5);
+  animation: aparecer 500ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+
+.titulo {
+  margin: 0;
+  font-size: clamp(1.75rem, 8vw, 2.5rem);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  animation: subir 450ms 80ms ease-out both;
+}
+
+.subtitulo {
+  margin: var(--mev-esp-3) 0 0;
+  font-size: var(--mev-texto-md);
+  line-height: 1.5;
+  opacity: 0.88;
+  max-width: 26rem;
+  animation: subir 450ms 160ms ease-out both;
+}
+
+/* --- Identidad de la camiseta --------------------------------------------- */
+
+.identidad {
+  margin-top: var(--mev-esp-6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--mev-esp-1);
+  animation: subir 450ms 240ms ease-out both;
+}
+
+.dorsal {
+  font-size: clamp(4rem, 22vw, 6.5rem);
+  font-weight: 800;
+  line-height: 0.9;
+  letter-spacing: -0.04em;
+}
+
+.club {
+  font-size: var(--mev-texto-lg);
+  font-weight: 700;
+}
+
+.jugador {
+  font-size: var(--mev-texto-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  opacity: 0.85;
+}
+
+/* --- Cuerpo --------------------------------------------------------------- */
+
+.cuerpo {
+  flex: 1;
+  width: 100%;
+  max-width: 30rem;
+  margin: 0 auto;
+  padding: var(--mev-esp-6) var(--mev-esp-5) var(--mev-esp-7);
+  display: grid;
+  gap: var(--mev-esp-5);
+  align-content: start;
+}
+
+.ficha {
+  display: grid;
+  gap: 0;
+  margin: 0;
+}
+
+.dato {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--mev-esp-4);
+  padding: var(--mev-esp-3) 0;
+  border-bottom: 1px solid var(--v-linea);
+}
+
+.datoEtiqueta {
+  margin: 0;
+  font-size: var(--mev-texto-sm);
+  color: var(--v-tinta-suave);
+}
+
+.datoValor {
+  margin: 0;
+  font-size: var(--mev-texto-sm);
+  font-weight: 600;
+  color: var(--v-tinta);
+  text-align: right;
+}
+
+/* --- Historia ------------------------------------------------------------- */
+
+.historia {
+  background: var(--v-fondo-suave);
+  border-radius: var(--mev-radio);
+  padding: var(--mev-esp-5);
+}
+
+.historiaTitulo {
+  margin: 0;
+  font-size: var(--mev-texto-md);
+  color: var(--v-tinta);
+}
+
+.historiaTexto {
+  margin: var(--mev-esp-2) 0 0;
+  font-size: var(--mev-texto-sm);
+  line-height: 1.6;
+  color: var(--v-tinta-suave);
+}
+
+/* --- Acciones ------------------------------------------------------------- */
+
+.acciones {
+  display: grid;
+  gap: var(--mev-esp-3);
+}
+
+.botonPrincipal,
+.botonSecundario {
+  display: block;
+  /* 3rem de alto: objetivo tactil comodo con el pulgar. */
+  min-height: 3rem;
+  padding: 0.875rem var(--mev-esp-5);
+  border-radius: var(--mev-radio-sm);
+  font-size: var(--mev-texto-md);
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none;
+}
+
+.botonPrincipal {
+  background: var(--v-boton);
+  color: var(--v-boton-tinta);
+}
+
+.botonSecundario {
+  background: transparent;
+  color: var(--v-boton-borde);
+  border: 2px solid var(--v-boton-borde);
+}
+
+/* --- Pies ----------------------------------------------------------------- */
+
+.pie {
+  margin: 0;
+  font-size: var(--mev-texto-xs);
+  line-height: 1.6;
+  color: var(--v-tinta-suave);
+  text-align: center;
+}
+
+.simulacion {
+  margin: 0;
+  font-size: 0.6875rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--v-tinta-suave);
+  text-align: center;
+  opacity: 0.7;
+}
+
+/* --- Animaciones ---------------------------------------------------------- */
+
+@keyframes aparecer {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes subir {
+  from {
+    opacity: 0;
+    transform: translateY(0.75rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* `prefers-reduced-motion` ya desactiva las animaciones en tokens.css */
